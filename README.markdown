@@ -29,3 +29,18 @@ main = do
   delay 1000
   print (1 `plus` 2)
 ```
+
+# todo
+
+- make marshalling safer and improve underlying infrastructure
+- add a good JavaScript parser with good error reporting
+- export a way to let users make custom QuasiQuoters, so they can choose their own marshalling, possibly based on types
+- support a combination of named arguments and positional placeholders so that all of these mean the same thing:
+
+```haskell
+plus1, plus2, plus3 :: Int -> Int -> Int
+plus1 x y = [js_| `x + `y |]
+plus2 x   = [js_| `x + $1 |]
+plus3     = [js_| $1 + $2 |]
+```
+
