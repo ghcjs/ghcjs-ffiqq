@@ -5,7 +5,7 @@
      This is mostly a demonstration of the approach, not production ready!
  -}
 
-module GHCJS.Foreign.QQ (js, js_, jsu, jsu_, jsi, jsi_) where
+module GHCJS.Foreign.QQ (js, js', js_, jsu, jsu', jsu_, jsi, jsi', jsi_) where
 
 import           Control.Applicative
 
@@ -25,31 +25,49 @@ import           GHCJS.Marshal
 
 import           System.IO.Unsafe
 
+-- result: FromJSRef a => IO a
 js :: QuasiQuoter
-js = mkFFIQQ True Safe
+js = mkFFIQQ False True Safe
 
+-- result: FromJSRef a => a
+js' :: QuasiQuoter
+js' = mkFFIQQ False False Safe
+
+-- result: IO ()
 js_ :: QuasiQuoter
-js_ = mkFFIQQ False Safe
+js_ = mkFFIQQ True True Safe
 
+-- result: FromJSRef a => IO a
 jsu :: QuasiQuoter
-jsu = mkFFIQQ True Unsafe
+jsu = mkFFIQQ False True Unsafe
 
+-- result: FromJSRef a => a
+jsu' :: QuasiQuoter
+jsu' = mkFFIQQ False False Unsafe
+
+-- result: IO ()
 jsu_ :: QuasiQuoter
-jsu_ = mkFFIQQ False Unsafe
+jsu_ = mkFFIQQ True True Unsafe
 
+-- result: FromJSRef a => IO a
 jsi :: QuasiQuoter
-jsi = mkFFIQQ True Interruptible
+jsi = mkFFIQQ False True Interruptible
 
+-- result: FromJSRef a => a
+jsi' :: QuasiQuoter
+jsi' = mkFFIQQ False False Interruptible
+
+-- result: IO ()
 jsi_ :: QuasiQuoter
-jsi_ = mkFFIQQ False Interruptible
+jsi_ = mkFFIQQ True True Interruptible
 
-mkFFIQQ :: Bool -> Safety -> QuasiQuoter
-mkFFIQQ isIO s = QuasiQuoter { quoteExp = jsExpQQ isIO s }
+mkFFIQQ :: Bool -> Bool -> Safety -> QuasiQuoter
+mkFFIQQ isUnit isIO s = QuasiQuoter { quoteExp = jsExpQQ isUnit isIO s }
 
 newtype QQCounter = QQCounter { getCount :: Int } deriving (Typeable, Show)
 
-jsExpQQ :: Bool -> Safety -> String -> Q Exp
-jsExpQQ isIO s pat = do
+jsExpQQ :: Bool -> Bool -> Safety -> String -> Q Exp
+jsExpQQ isUnit isIO s pat = do
   c <- maybe 0 getCount <$> qGetQ
   n <- newName ("__ghcjs_foreign_qq_spliced_" ++ show c)
   let (p:ps)       = linesBy (=='`') pat
@@ -67,7 +85,8 @@ jsExpQQ isIO s pat = do
         let v         = mkName ('b':show n)
             (t', xs') = importTy' t (n-1) xs
         in (AppT (AppT ArrowT (jsRefT v)) t', v:xs')
-      convertRes r | isIO      = AppE (AppE (VarE 'fmap) (LamE [VarP $ mkName "l"] (uref (VarE (mkName "l"))))) r
+      convertRes r | isUnit    = r
+                   | isIO      = AppE (AppE (VarE 'fmap) (LamE [VarP $ mkName "l"] (uref (VarE (mkName "l"))))) r
                    | otherwise = uref r
         where uref r = AppE (VarE 'fromJust) (AppE (VarE 'unsafePerformIO) (AppE (VarE 'fromJSRef) (AppE (VarE 'castRef) r)))
       ffiCall = convertRes (ffiCall' (VarE n) names)
@@ -75,7 +94,8 @@ jsExpQQ isIO s pat = do
       ffiCall' f (x:xs) = ffiCall' (AppE f (toJSRefE x)) xs
       toJSRefE n   = AppE (VarE 'unsafePerformIO) (AppE (VarE 'toJSRef) (VarE $ mkName n))
       jsRefT v     = AppT (ConT ''JSRef) (VarT v)
-      returnTy     = let r = AppT (ConT ''JSRef) (ConT ''()) in if isIO then AppT (ConT ''IO) r else r
+      returnTy     = let r = if isUnit then ConT ''() else AppT (ConT ''JSRef) (ConT ''())
+                     in if isIO then AppT (ConT ''IO) r else r
       pat'         = p ++ concatMap (\nr -> let (n,r) = break (not . isNameCh) nr in namePl n ++ r) ps
       namePl n     = '$':show (fromJust (M.lookup n nameMap))
       importPat    = "__ghcjs_javascript_" ++ L.intercalate "_" (map (show . ord) pat')

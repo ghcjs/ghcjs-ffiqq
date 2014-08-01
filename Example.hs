@@ -4,13 +4,13 @@ import Prelude hiding (log)
 import GHCJS.Foreign.QQ
 
 log :: String -> IO ()
-log msg = [js| console.log(`msg); |]
+log msg = [js_| console.log(`msg); |]
 
 delay :: Int -> IO ()
-delay ms = [jsi| setTimeout($c, `ms); |]
+delay ms = [jsi_| setTimeout($c, `ms); |]
 
 plus :: Int -> Int -> Int
-plus x y = [js_| `x + `y |]
+plus x y = [js'| `x + `y |]
 
 main :: IO ()
 main = do
