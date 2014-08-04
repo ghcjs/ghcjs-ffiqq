@@ -2,9 +2,8 @@ This is an experimental QuasiQuoter for the GHCJS foreign function interface. It
 you to call JavaScript inline, with named parameters. The QuasiQuoter automatically
 splices the top-level foreign imports.
 
-The current version is not yet ready for production, since it uses `unsafePerformIO` and
-`fromJust` around the `fromJSRef` and `toJSRef` methods. We might want to modify the classes
-to make them more suitable for the purpose of this library.
+The current version is not yet ready for production, since it uses experimental
+pure marshalling typeclasses.
 
 Example:
 
