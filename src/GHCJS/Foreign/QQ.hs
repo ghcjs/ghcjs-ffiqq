@@ -22,9 +22,15 @@ import           Language.Haskell.TH.Syntax
 import           Language.Haskell.TH
 
 import           GHCJS.Types
-import           GHCJS.PureMarshal
+import           GHCJS.Marshal
+import           GHCJS.Marshal.Pure
 
--- result: PFromJSRef a => IO a
+-- ' = Pure
+-- _ = IO ()
+-- u = unsafe
+-- i = interuptable
+
+-- result: FromJSRef a => IO a
 js :: QuasiQuoter
 js = mkFFIQQ False True Safe
 
@@ -36,7 +42,7 @@ js' = mkFFIQQ False False Safe
 js_ :: QuasiQuoter
 js_ = mkFFIQQ True True Safe
 
--- result: PFromJSRef a => IO a
+-- result: FromJSRef a => IO a
 jsu :: QuasiQuoter
 jsu = mkFFIQQ False True Unsafe
 
@@ -48,7 +54,7 @@ jsu' = mkFFIQQ False False Unsafe
 jsu_ :: QuasiQuoter
 jsu_ = mkFFIQQ True True Unsafe
 
--- result: PFromJSRef a => IO a
+-- result: FromJSRef a => IO a
 jsi :: QuasiQuoter
 jsi = mkFFIQQ False True Interruptible
 
@@ -85,13 +91,24 @@ jsExpQQ isUnit isIO s pat = do
             (t', xs') = importTy' t (n-1) xs
         in (AppT (AppT ArrowT (jsRefT v)) t', v:xs')
       convertRes r | isUnit    = r
-                   | isIO      = AppE (AppE (VarE 'fmap) (LamE [VarP $ mkName "l"] (uref (VarE (mkName "l"))))) r
-                   | otherwise = uref r
-        where uref r = AppE (VarE 'pfromJSRef) (AppE (VarE 'castRef) r)
-      ffiCall = convertRes (ffiCall' (VarE n) names)
+                   | isIO      = (InfixE
+                                    (Just (AppE (AppE (VarE 'fmap) (VarE 'castRef)) r))
+                                    (VarE '(>>=))
+                                    (Just (VarE 'fromJSRefUnchecked))
+                                 )
+                   | otherwise = AppE (VarE 'pfromJSRef) (AppE (VarE 'castRef) r)
+      ffiCall = convertRes ((if isIO then ffiCall' else pffiCall') (VarE n) names)
+      pffiCall' x []     = x
+      pffiCall' f (x:xs) = pffiCall' (AppE f (ptoJSRefE x)) xs
+      ptoJSRefE n   = AppE (VarE 'ptoJSRef) (VarE $ mkName n)
       ffiCall' x []     = x
-      ffiCall' f (x:xs) = ffiCall' (AppE f (toJSRefE x)) xs
-      toJSRefE n   = AppE (VarE 'ptoJSRef) (VarE $ mkName n)
+      ffiCall' f (x:xs) =
+            InfixE
+                (Just (toJSRefE x))
+                (VarE '(>>=))
+                (Just (LamE [VarP $ argName x] (ffiCall' (AppE f (VarE $ argName x)) xs)))
+        where argName = mkName . ("__ghcjs_foreign_qq_spliced_arg_"++)
+      toJSRefE n   = AppE (VarE 'toJSRef) (VarE $ mkName n)
       jsRefT v     = AppT (ConT ''JSRef) (VarT v)
       returnTy     = let r = if isUnit then ConT ''() else AppT (ConT ''JSRef) (ConT ''())
                      in if isIO then AppT (ConT ''IO) r else r
