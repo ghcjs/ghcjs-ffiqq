@@ -17,7 +17,6 @@ flag build-example
 
 library
   exposed-modules:     GHCJS.Foreign.QQ
-                       GHCJS.PureMarshal
   build-depends:       base >=4.7 && <4.9,
                        template-haskell,
                        ghcjs-base,

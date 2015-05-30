@@ -22,7 +22,7 @@ import           Language.Haskell.TH.Syntax
 import           Language.Haskell.TH
 
 import           GHCJS.Types
-import           GHCJS.PureMarshal
+import           GHCJS.Marshal.Pure
 
 -- result: PFromJSRef a => IO a
 js :: QuasiQuoter
@@ -87,11 +87,11 @@ jsExpQQ isUnit isIO s pat = do
       convertRes r | isUnit    = r
                    | isIO      = AppE (AppE (VarE 'fmap) (LamE [VarP $ mkName "l"] (uref (VarE (mkName "l"))))) r
                    | otherwise = uref r
-        where uref r = AppE (VarE 'pfromJSRef) (AppE (VarE 'castRef) r)
+        where uref r = AppE (VarE 'pFromJSRef) (AppE (VarE 'castRef) r)
       ffiCall = convertRes (ffiCall' (VarE n) names)
       ffiCall' x []     = x
       ffiCall' f (x:xs) = ffiCall' (AppE f (toJSRefE x)) xs
-      toJSRefE n   = AppE (VarE 'ptoJSRef) (VarE $ mkName n)
+      toJSRefE n   = AppE (VarE 'pToJSRef) (VarE $ mkName n)
       jsRefT v     = AppT (ConT ''JSRef) (VarT v)
       returnTy     = let r = if isUnit then ConT ''() else AppT (ConT ''JSRef) (ConT ''())
                      in if isIO then AppT (ConT ''IO) r else r
