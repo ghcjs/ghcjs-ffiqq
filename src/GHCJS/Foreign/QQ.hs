@@ -73,7 +73,7 @@ jsExpQQ isUnit isIO s pat = do
       isNameCh c   = isAlphaNum c || c `elem` "_"
       names        = L.nub (map (takeWhile isNameCh) ps)
       nameMap      = M.fromList $ zip names [1..]
-      ffiDecl    = ForeignD (ImportF CCall s importPat n (importTy returnTy (length names) []))
+      ffiDecl    = ForeignD (ImportF JavaScript s pat' n (importTy returnTy (length names) []))
       importTy :: Type -> Int -> [Name] -> Type
       importTy t n xs =
         let (t', xs') = importTy' t n xs
@@ -97,7 +97,6 @@ jsExpQQ isUnit isIO s pat = do
                      in if isIO then AppT (ConT ''IO) r else r
       pat'         = p ++ concatMap (\nr -> let (n,r) = break (not . isNameCh) nr in namePl n ++ r) ps
       namePl n     = '$':show (fromJust (M.lookup n nameMap))
-      importPat    = "__ghcjs_javascript_" ++ L.intercalate "_" (map (show . ord) pat')
   qAddTopDecls [ffiDecl]
   qPutQ (QQCounter (c+1))
   return ffiCall

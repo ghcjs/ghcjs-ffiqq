@@ -17,9 +17,9 @@ flag build-example
 
 library
   exposed-modules:     GHCJS.Foreign.QQ
-  build-depends:       base >=4.7 && <4.9,
-                       template-haskell,
-                       ghcjs-base,
+  build-depends:       base >= 4.8 && < 4.9,
+                       template-haskell >= 2.10,
+                       ghcjs-base >= 0.2,
                        split,
                        containers,
                        text,
