@@ -75,25 +75,23 @@ jsExpQQ isUnit isIO s pat = do
       nameMap      = M.fromList $ zip names [1..]
       ffiDecl    = ForeignD (ImportF JavaScript s pat' n (importTy returnTy (length names) []))
       importTy :: Type -> Int -> [Name] -> Type
-      importTy t n xs =
-        let (t', xs') = importTy' t n xs
-        in if null xs' then t' else ForallT (map PlainTV xs') [] t'
+      importTy t n xs = fst (importTy' t n xs)
       importTy' :: Type -> Int -> [Name] -> (Type, [Name])
       importTy' t 0 xs = (t,xs)
       importTy' t n xs =
         let v         = mkName ('b':show n)
             (t', xs') = importTy' t (n-1) xs
-        in (AppT (AppT ArrowT (jsRefT v)) t', v:xs')
+        in (AppT (AppT ArrowT (ConT ''JSRef)) t', v:xs')
       convertRes r | isUnit    = r
                    | isIO      = AppE (AppE (VarE 'fmap) (LamE [VarP $ mkName "l"] (uref (VarE (mkName "l"))))) r
                    | otherwise = uref r
-        where uref r = AppE (VarE 'pFromJSRef) (AppE (VarE 'castRef) r)
+        where uref r = AppE (VarE 'pFromJSRef) r
       ffiCall = convertRes (ffiCall' (VarE n) names)
       ffiCall' x []     = x
       ffiCall' f (x:xs) = ffiCall' (AppE f (toJSRefE x)) xs
       toJSRefE n   = AppE (VarE 'pToJSRef) (VarE $ mkName n)
-      jsRefT v     = AppT (ConT ''JSRef) (VarT v)
-      returnTy     = let r = if isUnit then ConT ''() else AppT (ConT ''JSRef) (ConT ''())
+      jsRefT v     = ConT ''JSRef
+      returnTy     = let r = if isUnit then ConT ''() else ConT ''JSRef
                      in if isIO then AppT (ConT ''IO) r else r
       pat'         = p ++ concatMap (\nr -> let (n,r) = break (not . isNameCh) nr in namePl n ++ r) ps
       namePl n     = '$':show (fromJust (M.lookup n nameMap))
