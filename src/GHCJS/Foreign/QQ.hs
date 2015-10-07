@@ -24,11 +24,11 @@ import           Language.Haskell.TH
 import           GHCJS.Types
 import           GHCJS.Marshal.Pure
 
--- result: PFromJSRef a => IO a
+-- result: PFromJSVal a => IO a
 js :: QuasiQuoter
 js = mkFFIQQ False True Safe
 
--- result: PFromJSRef a => a
+-- result: PFromJSVal a => a
 js' :: QuasiQuoter
 js' = mkFFIQQ False False Safe
 
@@ -36,11 +36,11 @@ js' = mkFFIQQ False False Safe
 js_ :: QuasiQuoter
 js_ = mkFFIQQ True True Safe
 
--- result: PFromJSRef a => IO a
+-- result: PFromJSVal a => IO a
 jsu :: QuasiQuoter
 jsu = mkFFIQQ False True Unsafe
 
--- result: PFromJSRef a => a
+-- result: PFromJSVal a => a
 jsu' :: QuasiQuoter
 jsu' = mkFFIQQ False False Unsafe
 
@@ -48,11 +48,11 @@ jsu' = mkFFIQQ False False Unsafe
 jsu_ :: QuasiQuoter
 jsu_ = mkFFIQQ True True Unsafe
 
--- result: PFromJSRef a => IO a
+-- result: PFromJSVal a => IO a
 jsi :: QuasiQuoter
 jsi = mkFFIQQ False True Interruptible
 
--- result: PFromJSRef a => a
+-- result: PFromJSVal a => a
 jsi' :: QuasiQuoter
 jsi' = mkFFIQQ False False Interruptible
 
@@ -81,17 +81,17 @@ jsExpQQ isUnit isIO s pat = do
       importTy' t n xs =
         let v         = mkName ('b':show n)
             (t', xs') = importTy' t (n-1) xs
-        in (AppT (AppT ArrowT (ConT ''JSRef)) t', v:xs')
+        in (AppT (AppT ArrowT (ConT ''JSVal)) t', v:xs')
       convertRes r | isUnit    = r
                    | isIO      = AppE (AppE (VarE 'fmap) (LamE [VarP $ mkName "l"] (uref (VarE (mkName "l"))))) r
                    | otherwise = uref r
-        where uref r = AppE (VarE 'pFromJSRef) r
+        where uref r = AppE (VarE 'pFromJSVal) r
       ffiCall = convertRes (ffiCall' (VarE n) names)
       ffiCall' x []     = x
-      ffiCall' f (x:xs) = ffiCall' (AppE f (toJSRefE x)) xs
-      toJSRefE n   = AppE (VarE 'pToJSRef) (VarE $ mkName n)
-      jsRefT v     = ConT ''JSRef
-      returnTy     = let r = if isUnit then ConT ''() else ConT ''JSRef
+      ffiCall' f (x:xs) = ffiCall' (AppE f (toJSValE x)) xs
+      toJSValE n   = AppE (VarE 'pToJSVal) (VarE $ mkName n)
+      jsRefT v     = ConT ''JSVal
+      returnTy     = let r = if isUnit then ConT ''() else ConT ''JSVal
                      in if isIO then AppT (ConT ''IO) r else r
       pat'         = p ++ concatMap (\nr -> let (n,r) = break (not . isNameCh) nr in namePl n ++ r) ps
       namePl n     = '$':show (fromJust (M.lookup n nameMap))
